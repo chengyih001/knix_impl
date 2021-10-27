@@ -258,17 +258,36 @@ class FunctionWorker:
         self._logger.debug("\tself._usertoken: %s", str(self._usertoken))
     ####
 
+##############################
     def _fork(self):
         instance_pid = os.fork()
 
         if instance_pid == 0:
             # child process (new FunctionWorker instance):
-            # Start pulling instance-specific topic {function_topic}_{pid}
+            # TODO
+            # 1. report this new FunctionWorker instance to ExecutionManager
+            # 2. start listening and pull instance-specific topic {function_topic}_{pid}
+            self._report_functionworker_instance()
             pass
         else:
             # parent process (parent FunctionWorker instance):
-            # return child FunctionWorker instance's pid
-            return instance_pid
+            pass
+    
+    def _report_functionworker_instance(self):
+        # TODO
+        # report this FunctionWorker instance to ExecutionManager via a LocalQueue topic executionMangaer.
+        pass
+
+    def swapin(self, pid):
+        # TODO
+        # swap in process
+        pass
+
+    def swapout(self, pid):
+        # TODO
+        # swap out process
+        pass
+##############################
 
     #def _fork_and_handle_message(self, key, encapsulated_value):
     def _execute_message(self, key, encapsulated_value):
@@ -604,7 +623,8 @@ class FunctionWorker:
             os._exit(1)
 
     def _get_and_handle_message(self):
-        lqm = self.local_queue_client.getMessage(self._function_topic, self._POLL_TIMEOUT)
+        # pulls on topics {function_topic}-{pid}
+        lqm = self.local_queue_client.getMessage("{}-{}".format(self._function_topic, os.getpid()), self._POLL_TIMEOUT)
         if lqm is not None:
             self._handle_message(lqm)
 
