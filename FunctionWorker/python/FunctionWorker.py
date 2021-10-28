@@ -71,6 +71,12 @@ class FunctionWorker:
     # TODO: scratch space for each function worker, possibly tmpfs path
     # each topic is defined as a function of (user, sandbox, workflow, function id). as a result, topic will identify the workflow.
     def __init__(self, args_dict):
+####################################
+
+        self._pid = os.getpid()
+        self.setup_cgroup(self._pid)
+
+####################################        
         self._POLL_MAX_NUM_MESSAGES = 500
         self._POLL_TIMEOUT = py3utils.ensure_long(10000)
 
@@ -259,34 +265,48 @@ class FunctionWorker:
     ####
 
 ##############################
+
     def _fork(self):
         instance_pid = os.fork()
-
+        
         if instance_pid == 0:
             # child process (new FunctionWorker instance):
-            # TODO
-            # 1. report this new FunctionWorker instance to ExecutionManager
-            # 2. start listening and pull instance-specific topic {function_topic}_{pid}
+            # 1. report to ExecutionManager
+            # 2. setup_cgroup
+            # 3. start listening and pull instance-specific topic {function_topic}_{pid}
+            self._pid = os.getpid()
             self._report_functionworker_instance()
-            pass
+            self.setup_cgroup()
         else:
             # parent process (parent FunctionWorker instance):
             pass
     
     def _report_functionworker_instance(self):
-        # TODO
-        # report this FunctionWorker instance to ExecutionManager via a LocalQueue topic executionMangaer.
-        pass
+        # report this FunctionWorker instance to ExecutionManager via a LocalQueue topic executionManager.
+        worker_details = {"functionTopic": self._function_topic, "pid": self._pid}
+        lqcm = LocalQueueClientMessage(key="new_fw_reporting", value=json.dumps(worker_details))
+        ack = self.local_queue_client.addMessage("executionManager", lqcm, True)
+        while not ack:
+            ack = self.local_queue_client.addMessage("executionManager", lqcm, True)
+        self._logger.info("New %s FunctionWorker with pid %d", self._function_topic, worker_details)
 
-    def swapin(self, pid):
-        # TODO
-        # swap in process
-        pass
+    def setup_cgroup(self):
+        os.mkdir("/sys/fs/cgroup/memory/{}".format(self._pid))
+        with open("/sys/fs/cgroup/memory/{}/memory.move_charge_at_immigrate".format(self._pid), "w") as f:
+            f.write("1")
+        with open("/sys/fs/cgroup/memory/memory.limit_in_bytes", "w") as f:
+            f.write(str(17179869184))
+        with open("/sys/fs/cgroup/memory/{}/cgroup.procs".format(self._pid), "w") as f:
+            f.write(str(self._pid))
+        # self.swapout()
 
-    def swapout(self, pid):
-        # TODO
-        # swap out process
-        pass
+    def unset_cgroup(self):
+        with open("/sys/fs/cgroup/memory/memory.move_charge_at_immigrate", "w") as f:
+            f.write("1")
+        with open("/sys/fs/cgroup/memory/cgroup.procs", "w") as f:
+            f.write(str(self._pid))
+        os.rmdir("/sys/fs/cgroup/memory/{}".format(self._pid))
+
 ##############################
 
     #def _fork_and_handle_message(self, key, encapsulated_value):
