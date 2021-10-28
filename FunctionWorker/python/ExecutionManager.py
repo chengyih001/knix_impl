@@ -115,12 +115,18 @@ class ExecutionManager:
         self._should_checkpoint = args["shouldcheckpoint"]
 
     def _get_and_handle_message(self):
+        # TODO
+        # need to hijack topics of that are targeted for the original FunctionWorker
+
         # pull topic ExecutionManager (a new FunctionWorker instance is reporting)
         lqm = self._local_queue_client.getMessage("executionManager", self._POLL_TIMEOUT)
         if lqm is not None:
             self._handle_message(lqm)
 
     def _handle_message(self, lqm):
+        # TODO
+        # need to hijack topics of that are targeted for the original FunctionWorker
+
         # handle message
         try:
             lqcm = LocalQueueClientMessage(lqm=lqm)
