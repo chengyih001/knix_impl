@@ -134,8 +134,10 @@ class ExecutionManager:
             value = lqcm.get_value()
             if key == "new_fw_reporting":
                 self._handle_reporting_worker(worker_detail=value)
+            elif key == "request_next_fw":
+                self._assign_fw_instance(function_topic=value)
         except Exception as exc:
-            self._logger.exception("Exception in handling: %s", str(exc))
+            self._logger.exception("Exception in handling-EM: %s", str(exc))
             sys.stdout.flush()
 
     def _handle_reporting_worker(self, worker_detail):
@@ -143,14 +145,38 @@ class ExecutionManager:
         info = json.loads(worker_detail)
         functionTopic = info["functionTopic"]
         pid = info["pid"]
-        if self._available_workers[functionTopic] is None:
-            self._available_workers[functionTopic] = []
-            self._available_workers[functionTopic].append(pid)
-        else:
-            self._available_workers[functionTopic].append(pid)
+        try:
+            if self._available_workers[functionTopic] is None:
+                self._available_workers[functionTopic] = []
+                self._available_workers[functionTopic].append(pid)
+            else:
+                self._available_workers[functionTopic].append(pid)
+        except Exception as exc:
+            self._logger.exception("Exception in _handle_reporting_worker: %s", str(exc))
+            sys.stdout.flush()
+
+
+    def _assign_fw_instance(self, function_topic):
+        # assign pid of a FunctionWorker instance to be in use
+        info = json.loads(function_topic)
+        instance = info["current_instance"]
+        next_functionTopics = info["next_topic"]
+        try:
+            pid_dict = {}
+            for functionTopic in next_functionTopics:
+                pid = self.allocate_worker(functionTopic)
+                pid_dict[functionTopic] = pid
+            lqcm = LocalQueueClientMessage(key="next_fw_instances", value=json.dumps(pid_dict))
+            ack = self._local_queue_client.addMessage(instance, lqcm, True)
+            while not ack:
+                ack = self._local_queue_client.addMessage(instance, lqcm, True)
+        except Exception as exc:
+            self._logger.exception("Exception in _assign_fw_instance: %s", str(exc))
+            sys.stdout.flush()
 
     def _update_execution_map(self, execution_instance):
-        # update Execution-instance map
+        #  TODO
+        #  update Execution-instance map
         pass
 
     def swapin(self, pid):
@@ -179,6 +205,10 @@ class ExecutionManager:
 
     def allocate_worker(self, functionTopic):
         # swap in a FunctionWorker instance
+        # TODO: Instance Scheduling Algorithm
+        # Right now, it is assumed that there will always be available instances when
+        # a FunctionWorker requests. In the future, it shall be changed to dynamically 
+        # adjust depending on the current instance distributions
         if len(self._available_workers[functionTopic]) > 0:
             for pid in self._available_workers[functionTopic]:
                 self._available_workers[functionTopic].pop(pid)
@@ -197,10 +227,13 @@ class ExecutionManager:
 
     def free_worker(self, functionTopic, pid):
         # swap out a FunctionWorker instance
-        if pid in self._busy_workers[functionTopic]:
+        try:
             self._busy_workers[functionTopic].pop(pid)
             self._available_workers[functionTopic].append(pid)
             self.swapout(pid)
+        except Exception as exc:
+            self._logger.exception("Exception in free_worker %s: %s", str(pid), str(exc))
+            sys.stdout.flush()
 
     def update_worker(self, functionTopic, pid, value):
         # update workers
