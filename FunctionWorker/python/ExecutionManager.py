@@ -98,8 +98,11 @@ class ExecutionManager:
         self._internal_endpoint = args["internalendpoint"]
         self._management_endpoints = args["managementendpoints"]
 
+        self._listen_topics = list(args["workerparams"].keys())
+
         # _XXX_: also includes the workflow end point (even though it is not an actual function)
         self._wf_function_list = args["workflowfunctionlist"]
+        self._wf_entry = args["workflowentry"]
         self._wf_exit = args["workflowexit"]
 
         self._is_session_workflow = False
@@ -246,7 +249,11 @@ class ExecutionManager:
         # TODO
         # Create Execution-instance Maps
         # Listen to executionManger topics
-        pass
+
+        lqm = self._get_and_handle_message()
+        if lqm is not None:
+            self._logger.info(lqm)
+        
 
     def _exit(self):
         # TODO
@@ -282,3 +289,17 @@ class ExecutionManager:
         self._running = True
         while self._running:
             self._loop()
+
+def main():
+    params_filename = sys.argv[1]
+    with open(params_filename, "r") as paramsf:
+        params = json.load(paramsf)
+
+    try:
+        em = ExecutionManager(params)
+        em.run()
+    except Exception as exc:
+        raise
+
+if __name__ == '__main__':
+    main()
