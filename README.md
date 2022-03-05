@@ -1,3 +1,13 @@
+# Abstract
+
+***This independent research is supervised under Professor Wei WANG, HKUST. More details  regarding this project can be found in our research report under [Serverless Cold Start Research Report](https://github.com/chengyih001/knix_impl/blob/main/Serverless%20Cold%20Start%20Research%20Report.pdf)***
+
+Serverless computing, or Function-as-a-Service (FAAS), provides users the ability to deploy applications and execution functions without paying additional effort in resource allocation and management. Cold start occurs when no warm instances are available when a function request arrives, thus a new execution instance must be spawned. Solutions to pre-warm instances are limited by memory capacity and therefore cannot scale up well. Swapping is a technique utilized in operating systems to free up additional physical memory by moving rarely used data to external storages. In this project, we apply swapping of pre-warm instances between memory and solid state drives to scale up the storing capacity and avoid cold start. Knix (https://github.com/knix-microfunctions/knix), a serverless platform designed by Bell Lab, is used as the framework for our project, as we revise and test the idea of swapping on it. 
+
+\
+\
+***All following sections are identical to the original Knix Github.***
+
 # Overview
 
 ![](logo/KNIX_logo_horizontal.jpg)
